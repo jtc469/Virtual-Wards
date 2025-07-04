@@ -1,5 +1,6 @@
-// Country Descriptions
+// script.js
 
+/* ---------- COUNTRY DATA ------------------------------------------ */
 const countryInfo = {
     
   36:  { name:"Australia",
@@ -33,106 +34,95 @@ const countryInfo = {
          desc:`The NHS has rolled out nationwide virtual wards, reaching ~10,500 staffed beds by September 2023 and growing to about 12,800 beds in March 2025 (roughly 20 per 100,000 people, 76 % occupied). More than 240,000 patients have already been treated at home, with studies reporting recovery to be as fast as in-hospital care and thousands of admissions avoided. A two-year independent impact evaluation began in February 2025 to guide the next expansion phase.`,
          link:"https://www.england.nhs.uk/2023/10/nhs-delivers-10000-virtual-ward-beds-target-with-hundreds-of-thousands-of-patients-treated-at-home/" }
 };
+/* ---------- SVG & PROJECTION ------------------------------------- */
+const mapContainer=document.getElementById('map-container');
 
+const svg=d3.select(mapContainer)
+  .append('svg')
+  .attr('viewBox','0 0 1400 840')          // maintains aspect ratio
+  .attr('preserveAspectRatio','xMidYMid meet');
 
-const mapContainer = document.getElementById('map-container');
-let   width = mapContainer.clientWidth,
-      height = width * 0.6;
+const projection=d3.geoNaturalEarth1();
+const path=d3.geoPath().projection(projection);
 
-const svg        = d3.select('#map-container')
-                     .append('svg')
-                     .attr('width',  width)
-                     .attr('height', height);
+function resize(){
+  const {width,height}=mapContainer.getBoundingClientRect();
+  projection.fitSize([width,height],{type:'Sphere'});
+  svg.selectAll('path').attr('d',path);
+}
+window.addEventListener('resize',resize);
 
-const projection = d3.geoNaturalEarth1()
-                     .scale(width / 5)
-                     .translate([width/2, height/2]);
+/* ---------- TOOLTIP ---------------------------------------------- */
+const tooltip=d3.select('#tooltip');
+let   activePath=null;
 
-const path       = d3.geoPath().projection(projection);
-
-const tooltip   = d3.select('#tooltip');
-const connector = svg.append('line')
-                     .attr('stroke', '#4db8ff')
-                     .attr('stroke-width', 0)
-                     .attr('stroke-dasharray', '2,2')
-                     .style('opacity', 0);
-
-let activePath = null;
-
-function positionTooltip(cx, cy) {
-  const tx = cx + 70,
-        ty = cy - 60;
-  tooltip.style('left', tx + 'px').style('top', ty + 'px');
-  connector.attr('x1', cx).attr('y1', cy)
-           .attr('x2', tx + 10).attr('y2', ty + 10)
-           .style('opacity', 1);
+function positionTooltip(cx,cy){
+  const tx=cx+70, ty=cy-60;
+  tooltip.style('left',`${tx}px`).style('top',`${ty}px`);
 }
 
-function showTooltip(d, element) {
-  const info = countryInfo[d.id];
-  if (!info) return;
+function showTooltip(d,element){
+  const info=countryInfo[d.id];
+  if(!info) return;
 
-  if (activePath) activePath.classed('active', false);
-  activePath = d3.select(element).classed('active', true);
+  if(activePath) activePath.classed('active',false);
+  activePath=d3.select(element).classed('active',true);
 
-  const [cx, cy] = path.centroid(d);
+  const [cx,cy]=path.centroid(d);
   tooltip.html(`
     <h2>${info.name}</h2>
     <p>${info.desc}</p>
     <a href="${info.link}" target="_blank" rel="noopener">Read More →</a>
   `);
-  positionTooltip(cx, cy);
-  tooltip.classed('show', true);
+  positionTooltip(cx,cy);
+  tooltip.classed('show',true);
 }
-
-function hideTooltip() {
-  tooltip.classed('show', false);
-  
-  if (activePath) activePath.classed('active', false);
-  activePath = null;
-}
-
 
 function hideTooltip(){
-  tooltip.classed('show', false);
-  connector.style('opacity', 0);   // ← add this
-  if (activePath) activePath.classed('active', false);
-  activePath = null;
+  tooltip.classed('show',false);
+  if(activePath) activePath.classed('active',false);
+  activePath=null;
 }
 
+tooltip.on('mouseleave',hideTooltip);
 
-const EXCLUDE = [581];  
+/* ---------- DRAW MAP --------------------------------------------- */
+const isTouch='ontouchstart'in window;
+
 d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-  .then(topology => {
-    const countries = topojson
-        .feature(topology, topology.objects.countries)
-        .features
-        .filter(f => f.properties.name !== 'Antarctica');
+  .then(topology=>{
+    const countries=topojson
+      .feature(topology,topology.objects.countries)
+      .features
+      .filter(f=>f.properties.name!=='Antarctica');
 
     svg.selectAll('path')
-       .data(countries)
-       .enter().append('path')
-       .attr('d', path)
-       .attr('class', d => countryInfo[d.id] ? 'country highlight' : 'country')
-       .on('mouseenter', function (event, d) { showTooltip(d, this); })
-       .on('mousemove',  function (event, d) {
-          if (activePath) {
-            const [cx, cy] = path.centroid(d);
-            positionTooltip(cx, cy);
-          }
-       })
-       .on('mouseleave', () => {
-          if (!tooltip.node().matches(':hover')) hideTooltip();
-       });
+      .data(countries)
+      .enter().append('path')
+      .attr('d',path)
+      .attr('class',d=>countryInfo[d.id]?'country highlight':'country')
+      .on(isTouch?'touchstart':'mouseenter',function(event,d){
+        showTooltip(d,this);
+        if(isTouch) event.preventDefault();       // stop double-tap zoom
+      })
+      .on(isTouch?'touchmove':'mousemove',function(event,d){
+        if(activePath){
+          const [cx,cy]=path.centroid(d);
+          positionTooltip(cx,cy);
+        }
+      })
+      .on(isTouch?'touchend':'mouseleave',()=>{
+        if(!isTouch || !tooltip.node().matches(':hover')) hideTooltip();
+      });
+
+    resize();  // first fit after paths exist
   });
 
-window.addEventListener('resize', () => {
-  width  = mapContainer.clientWidth;
-  height = width * 0.6;
+/* ---------- ZOOM & PAN ------------------------------------------- */
+const zoom=d3.zoom()
+  .scaleExtent([1,8])
+  .on('zoom',event=>{
+    svg.selectAll('path').attr('transform',event.transform);
+  });
 
-  svg.attr('width', width).attr('height', height);
-  projection.scale(width / 5).translate([width/2, height/2]);
-  svg.selectAll('path').attr('d', path);
-});
-
-tooltip.on('mouseleave', hideTooltip);
+svg.call(zoom);
