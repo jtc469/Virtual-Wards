@@ -1,6 +1,5 @@
-// script.js
+// Country descriptions and links 
 
-/* ---------- COUNTRY DATA ------------------------------------------ */
 const countryInfo = {
     
   36:  { name:"Australia",
@@ -34,12 +33,13 @@ const countryInfo = {
          desc:`The NHS has rolled out nationwide virtual wards, reaching ~10,500 staffed beds by September 2023 and growing to about 12,800 beds in March 2025 (roughly 20 per 100,000 people, 76 % occupied). More than 240,000 patients have already been treated at home, with studies reporting recovery to be as fast as in-hospital care and thousands of admissions avoided. A two-year independent impact evaluation began in February 2025 to guide the next expansion phase.`,
          link:"https://www.england.nhs.uk/2023/10/nhs-delivers-10000-virtual-ward-beds-target-with-hundreds-of-thousands-of-patients-treated-at-home/" }
 };
-/* ---------- SVG & PROJECTION ------------------------------------- */
+
+
 const mapContainer=document.getElementById('map-container');
 
 const svg=d3.select(mapContainer)
   .append('svg')
-  .attr('viewBox','0 0 1400 840')          // maintains aspect ratio
+  .attr('viewBox','0 0 1400 840')      
   .attr('preserveAspectRatio','xMidYMid meet');
 
 const projection=d3.geoNaturalEarth1();
@@ -52,7 +52,6 @@ function resize(){
 }
 window.addEventListener('resize',resize);
 
-/* ---------- TOOLTIP ---------------------------------------------- */
 const tooltip=d3.select('#tooltip');
 let   activePath=null;
 
@@ -86,7 +85,6 @@ function hideTooltip(){
 
 tooltip.on('mouseleave',hideTooltip);
 
-/* ---------- DRAW MAP --------------------------------------------- */
 const isTouch='ontouchstart'in window;
 
 d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
@@ -118,7 +116,6 @@ d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
     resize();  // first fit after paths exist
   });
 
-/* ---------- ZOOM & PAN ------------------------------------------- */
 const zoom=d3.zoom()
   .scaleExtent([1,8])
   .on('zoom',event=>{
